@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from sqlalchemy import inspect, text
 
 import auth
-from models import User
+from models import Content, User
 from session import Base, engine
 
 load_dotenv()
@@ -39,6 +40,37 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    ensure_schema()
+
+
+def ensure_schema():
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    user_columns = {
+        "username": "VARCHAR(50)",
+        "bio": "TEXT",
+        "avatar_url": "VARCHAR(500)",
+        "website": "VARCHAR(255)",
+        "location": "VARCHAR(120)",
+        "creator_title": "VARCHAR(120)",
+    }
+
+    with engine.begin() as connection:
+        for column_name, column_type in user_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
+
+        users_without_username = connection.execute(
+            text("SELECT id, email, name FROM users WHERE username IS NULL OR username = ''")
+        ).mappings().all()
+        for user in users_without_username:
+            base = (user["name"] or user["email"].split("@")[0]).lower()
+            username = "".join(char if char.isalnum() else "_" for char in base).strip("_")[:24] or "creator"
+            username = f"{username}_{user['id']}"[:30]
+            connection.execute(text("UPDATE users SET username = :username WHERE id = :id"), {"username": username, "id": user["id"]})
 
 
 @app.get("/")
