@@ -7,8 +7,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from database.models import User
-from database.session import get_db
+from models import User
+from session import get_db
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-secret-before-deploying")
 ALGORITHM = "HS256"

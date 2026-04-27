@@ -5,9 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from api import auth
-from database.models import User
-from database.session import Base, engine
+import auth
+from models import User
+from session import Base, engine
 
 load_dotenv()
 
